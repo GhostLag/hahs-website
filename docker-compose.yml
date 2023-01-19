@@ -1,9 +1,21 @@
 version: '3'
+
 services:
+  chatbot:
+    extends:
+      file: hahs-teams-bot/docker-compose.yml
+      service: chatbot
+  token:
+    extends:
+      file: hahs-teams-bot/docker-compose.yml
+      service: token
   nginx:
     restart: always
+    depends_on:
+      - chatbot
+      - token
     build: 
-      dockerfile: Dockerfile
-      context: ./nginx
+      dockerfile: nginx/Dockerfile
+      context: .
     ports:
-      - '3050:80'
+      - '80:80'
