@@ -1,21 +1,71 @@
 version: '3'
 
+networks:
+  server:
+
 services:
   chatbot:
     extends:
       file: hahs-teams-bot/docker-compose.yml
       service: chatbot
+    network_mode: "bridge"
+    environment:
+      VIRTUAL_HOST: chatbot.${DOMAIN}
+    networks:
+      - server
+    expose:
+      - '3978'
   token:
     extends:
       file: hahs-teams-bot/docker-compose.yml
       service: token
+    network_mode: "bridge"
+    networks:
+      - server
+
   nginx:
     restart: always
     depends_on:
       - chatbot
       - token
-    build: 
-      dockerfile: nginx/Dockerfile
-      context: .
+    image: nginx
+    volumes: 
+      - ./nginx/content:/usr/share/nginx/html:ro
+      - ./hahs-teams-bot/website:/usr/share/nginx/html/website:ro
+      - ./nginx/conf:/etc/nginx:ro
+    environment:
+      VIRTUAL_HOST: ${DOMAIN}
+    networks:
+      - server
+    container_name: ngnix
+    expose:
+      - '80'
+
+  nginx-proxy:
+    restart: always
+      # depends_on:
+      #   - nginx
+    image: jwilder/nginx-proxy
+    container_name: nginx-proxy
     ports:
-      - '80:80'
+      - "80:80"
+      - "443:443"
+    volumes:
+      # - conf:/etc/nginx/conf.d
+      #- ./nginx-proxy/html:/usr/share/nginx/html
+      #- ./nginx-proxy/dhparam:/etc/nginx/dhparam
+      #- ./nginx-proxy/vhost:/etc/nginx/vhost.d
+      #- ./nginx-proxy/certs:/etc/nginx/certs:ro
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+    networks:
+      - server
+
+        #  acme-companion:
+        #    image: nginxproxy/acme-companion
+        #    container_name: nginx-proxy-acme
+        #    volumes_from:
+        #      - nginx-proxy
+        #    volumes:
+        #      - certs:/etc/nginx/certs:rw
+        #      - acme:/etc/acme.sh
+        #      - /var/run/docker.sock:/var/run/docker.sock:ro
