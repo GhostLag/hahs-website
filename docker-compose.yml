@@ -11,6 +11,7 @@ services:
     network_mode: "bridge"
     environment:
       VIRTUAL_HOST: chatbot.${DOMAIN}
+      LETSENCRYPT_HOST: chatbot.${DOMAIN}
     networks:
       - server
     expose:
@@ -33,6 +34,7 @@ services:
       - ./nginx/conf:/etc/nginx:ro
     environment:
       VIRTUAL_HOST: ${DOMAIN}
+      LETSENCRYPT_HOST: ${DOMAIN}
     networks:
       - server
     container_name: ngnix
@@ -65,4 +67,4 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - /var/docker/nginx/acme:/etc/acme.sh
     environment:
-      EMAIL:
+      DEFAULT_EMAIL:
