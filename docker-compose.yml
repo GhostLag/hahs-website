@@ -22,11 +22,9 @@ services:
     network_mode: "bridge"
     networks:
       - server
-
   nginx:
     restart: always
     depends_on:
-      - chatbot
       - token
     image: nginx
     volumes: 
@@ -40,32 +38,31 @@ services:
     container_name: ngnix
     expose:
       - '80'
-
   nginx-proxy:
     restart: always
-      # depends_on:
-      #   - nginx
-    image: jwilder/nginx-proxy
+    depends_on:
+      - chatbot
+      - nginx
+    image: nginxproxy/nginx-proxy
     container_name: nginx-proxy
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      # - conf:/etc/nginx/conf.d
-      #- ./nginx-proxy/html:/usr/share/nginx/html
-      #- ./nginx-proxy/dhparam:/etc/nginx/dhparam
-      #- ./nginx-proxy/vhost:/etc/nginx/vhost.d
-      #- ./nginx-proxy/certs:/etc/nginx/certs:ro
+      - /var/html:/usr/share/nginx/html
+      - /var/vhost:/etc/nginx/vhost.d
+      - /var/certs:/etc/nginx/certs
       - /var/run/docker.sock:/tmp/docker.sock:ro
     networks:
       - server
 
-        #  acme-companion:
-        #    image: nginxproxy/acme-companion
-        #    container_name: nginx-proxy-acme
-        #    volumes_from:
-        #      - nginx-proxy
-        #    volumes:
-        #      - certs:/etc/nginx/certs:rw
-        #      - acme:/etc/acme.sh
-        #      - /var/run/docker.sock:/var/run/docker.sock:ro
+  acme-companion:
+    image: nginxproxy/acme-companion
+    container_name: nginx-proxy-acme
+    volumes_from:
+      - nginx-proxy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/docker/nginx/acme:/etc/acme.sh
+    environment:
+      EMAIL:
