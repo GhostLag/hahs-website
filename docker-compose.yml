@@ -1,7 +1,7 @@
 version: '3.4'
 
 networks:
-  server:
+  nginx-proxy:
 
 services:
   chatbot:
@@ -13,57 +13,89 @@ services:
       VIRTUAL_HOST: chatbot.${DOMAIN}
       LETSENCRYPT_HOST: chatbot.${DOMAIN}
     networks:
-      - server
-    expose:
-      - '3978'
+      - nginx-proxy
+    ports:
+      - "3978:3978"
+
   token:
     extends:
       file: hahs-teams-bot/docker-compose.yml
       service: token
     network_mode: "bridge"
     networks:
-      - server
+      - nginx-proxy
+
   nginx:
     restart: always
     depends_on:
+      - chatbot
       - token
     image: nginx
     volumes: 
       - ./nginx/content:/usr/share/nginx/html:ro
       - ./hahs-teams-bot/website:/usr/share/nginx/html/website:ro
       - ./nginx/conf:/etc/nginx:ro
+      - /var/docker/letsencrypt/config:/swag-ssl
     environment:
       VIRTUAL_HOST: ${DOMAIN}
-      LETSENCRYPT_HOST: ${DOMAIN}
     networks:
-      - server
-    container_name: ngnix
-    expose:
-      - '80'
-  nginx-proxy:
-    restart: always
-    depends_on:
-      - chatbot
-      - nginx
-    image: nginxproxy/nginx-proxy
-    container_name: nginx-proxy
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - /var/html:/usr/share/nginx/html
-      - /var/vhost:/etc/nginx/vhost.d
-      - /var/certs:/etc/nginx/certs
-      - /var/run/docker.sock:/tmp/docker.sock:ro
-    networks:
-      - server
-  acme-companion:
-    image: nginxproxy/acme-companion
-    container_name: nginx-proxy-acme
-    volumes_from:
       - nginx-proxy
+    container_name: ngnix
+    ports:
+      - 80:80
+      - 443:443
+
+  swag:
+    image: linuxserver/swag:2.2.0
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /var/docker/nginx/acme:/etc/acme.sh
+      - /var/docker/letsencrypt/config:/config
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    networks:
+      - nginx-proxy
     environment:
-      DEFAULT_EMAIL:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Australia/Sydney
+      - URL=hahs.app
+      - VALIDATION=http
+      - SUBDOMAINS=www,chatbot,
+      - VALIDATION=dns
+      - DNSPLUGIN=digitalocean
+      - EMAIL
+      - ONLY_SUBDOMAINS=false
+      - DHLEVEL=4096
+      - STAGING=false
+    container_name: letsencrypt
+    ports:
+      - 443:443
+      - 80:80
+
+        # nginx-proxy:
+        #   restart: always
+        #   depends_on:
+        #     - chatbot
+        #     - nginx
+        #   image: nginxproxy/nginx-proxy
+        #   container_name: nginx-proxy
+        #   ports:
+        #     - "80:80"
+        #     - "443:443"
+        #   volumes:
+        #     - /var/html:/usr/share/nginx/html
+        #     - /var/vhost:/etc/nginx/vhost.d
+        #     - /var/certs:/etc/nginx/certs
+        #     - /var/run/docker.sock:/tmp/docker.sock:ro
+        #   networks:
+        #     - server
+        # acme-companion:
+        #   image: nginxproxy/acme-companion
+        #   container_name: nginx-proxy-acme
+        #   volumes_from:
+        #     - nginx-proxy
+        #   volumes:
+        #     - /var/run/docker.sock:/var/run/docker.sock
+        #     - /var/docker/nginx/acme:/etc/acme.sh
+        #   environment:
+        #     DEFAULT_EMAIL:
