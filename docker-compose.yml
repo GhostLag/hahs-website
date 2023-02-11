@@ -8,7 +8,6 @@ services:
     extends:
       file: hahs-teams-bot/docker-compose.yml
       service: chatbot
-    network_mode: "bridge"
     networks:
       - nginx-proxy
     ports:
@@ -18,12 +17,12 @@ services:
     extends:
       file: hahs-teams-bot/docker-compose.yml
       service: token
-    network_mode: "bridge"
     networks:
       - nginx-proxy
+    ports:
+      - "5002:5002"
 
   swag:
-    # image: linuxserver/swag:2.2.0
     build:
       dockerfile: nginx/swag.Dockerfile
     depends_on:
@@ -45,7 +44,7 @@ services:
       - TZ=Australia/Sydney
       - URL=hahs.app
       - VALIDATION=http
-      - SUBDOMAINS=www,chatbot,
+      - SUBDOMAINS=www,chatbot,*.api,
       - VALIDATION=dns
       - DNSPLUGIN=digitalocean
       - EMAIL
